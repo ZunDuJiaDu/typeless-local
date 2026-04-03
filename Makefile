@@ -1,7 +1,7 @@
 APP_NAME := Typeless
 INSTALL_DIR ?= $(HOME)/Applications
 
-.PHONY: build run install clean test
+.PHONY: build run install clean test verify
 
 build:
 	./scripts/build-app.sh
@@ -17,3 +17,6 @@ clean:
 
 test:
 	swift test
+
+verify:
+	./scripts/verify-app.sh
