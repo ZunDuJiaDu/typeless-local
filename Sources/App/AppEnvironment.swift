@@ -17,7 +17,7 @@ public final class AppEnvironment {
             inputSourceService: SystemInputSourceService(),
             keyboardPastePerformer: SystemKeyboardPastePerformer()
         )
-        let llmRefinementService = LLMRefinementService()
+        let textOrganizationService = TextOrganizationService()
         let sessionCoordinator = DictationSessionCoordinator(
             settingsStore: settingsStore,
             permissionCoordinator: permissionCoordinator,
@@ -26,11 +26,11 @@ public final class AppEnvironment {
             speechService: SpeechRecognitionService(),
             overlayController: overlayController,
             textInjectionService: textInjectionService,
-            llmRefinementService: llmRefinementService
+            textOrganizationService: textOrganizationService
         )
         let settingsWindowController = SettingsWindowController(
             settingsStore: settingsStore,
-            llmRefinementService: llmRefinementService
+            textOrganizationService: textOrganizationService
         )
         let statusItemController = StatusItemController(
             settingsStore: settingsStore,

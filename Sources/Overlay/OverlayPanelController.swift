@@ -47,7 +47,7 @@ public final class OverlayPanelController {
     }
 
     public func showRefining() {
-        update(text: "Refining…", level: 0.12)
+        update(text: "Organizing…", level: 0.12)
     }
 
     public func showTransient(text: String, duration: TimeInterval = 1.4) {
