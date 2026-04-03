@@ -30,6 +30,7 @@ public final class AppEnvironment {
         )
         let settingsWindowController = SettingsWindowController(
             settingsStore: settingsStore,
+            permissionCoordinator: permissionCoordinator,
             textOrganizationService: textOrganizationService
         )
         let statusItemController = StatusItemController(

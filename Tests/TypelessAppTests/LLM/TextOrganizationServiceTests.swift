@@ -1,5 +1,5 @@
 import Testing
-@testable import Typeless
+@testable import WuZi
 
 private actor ProviderCallRecorder {
     private var providers: [TextOrganizationProviderKind] = []

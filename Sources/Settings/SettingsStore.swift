@@ -6,6 +6,7 @@ public final class SettingsStore {
         static let isLLMRefinementEnabled = "settings.isLLMRefinementEnabled"
         static let llmConfiguration = "settings.llmConfiguration"
         static let textOrganizationSettings = "settings.textOrganizationSettings"
+        static let hasCompletedWelcome = "settings.hasCompletedWelcome"
     }
 
     private let userDefaults: UserDefaults
@@ -67,16 +68,28 @@ public final class SettingsStore {
         }
     }
 
+    public var hasCompletedWelcome: Bool {
+        get {
+            if userDefaults.object(forKey: Keys.hasCompletedWelcome) == nil {
+                return false
+            }
+            return userDefaults.bool(forKey: Keys.hasCompletedWelcome)
+        }
+        set { userDefaults.set(newValue, forKey: Keys.hasCompletedWelcome) }
+    }
+
     public var settings: AppSettings {
         get {
             AppSettings(
                 selectedLocale: selectedLocale,
-                textOrganizationSettings: textOrganizationSettings
+                textOrganizationSettings: textOrganizationSettings,
+                hasCompletedWelcome: hasCompletedWelcome
             )
         }
         set {
             selectedLocale = newValue.selectedLocale
             textOrganizationSettings = newValue.textOrganizationSettings
+            hasCompletedWelcome = newValue.hasCompletedWelcome
         }
     }
 
@@ -112,7 +125,6 @@ public final class SettingsStore {
             settings.isEnabled && settings.preferredProvider == .openAICompatible,
             forKey: Keys.isLLMRefinementEnabled
         )
-
         if let data = try? encoder.encode(settings.openAICompatibleConfiguration.normalized()) {
             userDefaults.set(data, forKey: Keys.llmConfiguration)
         }

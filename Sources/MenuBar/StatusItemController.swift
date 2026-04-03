@@ -11,6 +11,18 @@ public final class StatusItemController: NSObject {
 
     private var statusMessage = "Ready"
 
+    private var appDisplayName: String {
+        if let displayName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String,
+           !displayName.isEmpty {
+            return displayName
+        }
+        if let bundleName = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String,
+           !bundleName.isEmpty {
+            return bundleName
+        }
+        return "WuZi"
+    }
+
     public init(
         settingsStore: SettingsStore,
         permissionCoordinator: PermissionCoordinator,
@@ -33,19 +45,22 @@ public final class StatusItemController: NSObject {
 
     private func configureButton() {
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "WuZi")
+            button.image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: appDisplayName)
             button.imagePosition = .imageOnly
-            button.toolTip = "WuZi"
+            button.toolTip = appDisplayName
         }
     }
 
     private func rebuildMenu() {
         let menu = NSMenu()
-
         let status = NSMenuItem(title: "Status: \(statusMessage)", action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
         menu.addItem(.separator())
+
+        let openMainWindow = NSMenuItem(title: "Open \(appDisplayName)…", action: #selector(openSettings), keyEquivalent: ",")
+        openMainWindow.target = self
+        menu.addItem(openMainWindow)
 
         let languageMenuItem = NSMenuItem(title: "Language", action: nil, keyEquivalent: "")
         let languageMenu = NSMenu()
@@ -59,17 +74,17 @@ public final class StatusItemController: NSObject {
         menu.setSubmenu(languageMenu, for: languageMenuItem)
         menu.addItem(languageMenuItem)
 
-        let llmMenuItem = NSMenuItem(title: "Text Organization", action: nil, keyEquivalent: "")
-        let llmMenu = NSMenu()
-        let toggle = NSMenuItem(title: "Enabled", action: #selector(toggleLLM(_:)), keyEquivalent: "")
+        let organizationMenuItem = NSMenuItem(title: "Text Organization", action: nil, keyEquivalent: "")
+        let organizationMenu = NSMenu()
+        let toggle = NSMenuItem(title: "Enabled", action: #selector(toggleOrganization(_:)), keyEquivalent: "")
         toggle.target = self
-        toggle.state = settingsStore.isLLMRefinementEnabled ? .on : .off
-        llmMenu.addItem(toggle)
-        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
-        settingsItem.target = self
-        llmMenu.addItem(settingsItem)
-        menu.setSubmenu(llmMenu, for: llmMenuItem)
-        menu.addItem(llmMenuItem)
+        toggle.state = settingsStore.textOrganizationSettings.isEnabled ? .on : .off
+        organizationMenu.addItem(toggle)
+        let openWorkbench = NSMenuItem(title: "Open Test Organization", action: #selector(openTestOrganization), keyEquivalent: "")
+        openWorkbench.target = self
+        organizationMenu.addItem(openWorkbench)
+        menu.setSubmenu(organizationMenu, for: organizationMenuItem)
+        menu.addItem(organizationMenuItem)
 
         let permissionMenuItem = NSMenuItem(title: permissionSummary(), action: #selector(promptPermissions), keyEquivalent: "")
         permissionMenuItem.target = self
@@ -81,10 +96,9 @@ public final class StatusItemController: NSObject {
         menu.addItem(startStop)
 
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "Quit WuZi", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit \(appDisplayName)", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
-
         statusItem.menu = menu
     }
 
@@ -94,21 +108,24 @@ public final class StatusItemController: NSObject {
     }
 
     @objc private func selectLocale(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String,
-              let locale = RecognitionLocale(rawValue: raw)
-        else { return }
+        guard let raw = sender.representedObject as? String, let locale = RecognitionLocale(rawValue: raw) else { return }
         settingsStore.selectedLocale = locale
         rebuildMenu()
     }
 
-    @objc private func toggleLLM(_ sender: NSMenuItem) {
-        settingsStore.isLLMRefinementEnabled.toggle()
+    @objc private func toggleOrganization(_ sender: NSMenuItem) {
+        var settings = settingsStore.textOrganizationSettings
+        settings.isEnabled.toggle()
+        settingsStore.textOrganizationSettings = settings
         rebuildMenu()
     }
 
     @objc private func openSettings() {
-        settingsWindowController.showWindow(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        settingsWindowController.showMainWindow()
+    }
+
+    @objc private func openTestOrganization() {
+        settingsWindowController.showMainWindow(selecting: .testOrganization)
     }
 
     @objc private func promptPermissions() {
