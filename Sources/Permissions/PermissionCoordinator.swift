@@ -3,6 +3,20 @@ import AVFoundation
 import ApplicationServices
 import Speech
 
+struct AccessibilityPromptGate {
+    private var hasPromptedWithoutGrant = false
+
+    mutating func shouldPrompt(accessibilityGranted: Bool) -> Bool {
+        guard !accessibilityGranted else {
+            hasPromptedWithoutGrant = false
+            return false
+        }
+        guard !hasPromptedWithoutGrant else { return false }
+        hasPromptedWithoutGrant = true
+        return true
+    }
+}
+
 public enum PermissionState: String, Sendable {
     case unknown
     case granted
@@ -89,6 +103,8 @@ public struct PermissionSnapshot: Sendable {
 
 @MainActor
 public final class PermissionCoordinator {
+    private var accessibilityPromptGate = AccessibilityPromptGate()
+
     public init() {}
 
     public func snapshot() -> PermissionSnapshot {
@@ -122,6 +138,15 @@ public final class PermissionCoordinator {
     }
 
     public func promptForAccessibilityIfNeeded() {
+        let accessibilityGranted = AXIsProcessTrusted()
+        guard accessibilityPromptGate.shouldPrompt(accessibilityGranted: accessibilityGranted) else {
+            if accessibilityGranted {
+                AppLogger.permissions.debug("Skipping accessibility prompt because trust is already granted")
+            } else {
+                AppLogger.permissions.debug("Suppressing duplicate accessibility prompt for current launch")
+            }
+            return
+        }
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         AppLogger.permissions.notice("Prompting for accessibility trust")
         _ = AXIsProcessTrustedWithOptions(options)

@@ -27,3 +27,5 @@ if [[ "${DESTINATION}" == "${USER_APP}" && -d "${SYSTEM_APP}" ]]; then
     printf 'warning: this install updated %s. Open that path, or install system-wide with: make install-system\n' "${DESTINATION}" >&2
   fi
 fi
+
+printf "note: manual validation should use %s. A freshly rebuilt dist/${APP_NAME}.app can cause macOS TCC / Accessibility to treat WuZi as a new app.\n" "${DESTINATION}" >&2
