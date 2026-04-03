@@ -48,15 +48,18 @@ public final class TextInjectionService {
     private let pasteboardService: PasteboardSnapshotting
     private let inputSourceService: InputSourceManaging
     private let keyboardPastePerformer: KeyboardPastePerforming
+    private let switchSettleDelayNanoseconds: UInt64
 
     public init(
         pasteboardService: PasteboardSnapshotting,
         inputSourceService: InputSourceManaging,
-        keyboardPastePerformer: KeyboardPastePerforming
+        keyboardPastePerformer: KeyboardPastePerforming,
+        switchSettleDelayNanoseconds: UInt64 = 150_000_000
     ) {
         self.pasteboardService = pasteboardService
         self.inputSourceService = inputSourceService
         self.keyboardPastePerformer = keyboardPastePerformer
+        self.switchSettleDelayNanoseconds = switchSettleDelayNanoseconds
     }
 
     public func inject(text: String) async throws {
@@ -64,20 +67,38 @@ public final class TextInjectionService {
         let currentSource = try await inputSourceService.currentInputSource()
         let switched = try await inputSourceService.selectASCIISourceIfNeeded(from: currentSource)
 
+        var primaryError: Error?
+        if switched {
+            try? await Task.sleep(nanoseconds: switchSettleDelayNanoseconds)
+        }
+
         do {
             try await pasteboardService.set(string: text)
             try await keyboardPastePerformer.performPaste()
         } catch {
-            if switched {
-                try? await inputSourceService.restoreInputSource(currentSource)
-            }
-            try? await pasteboardService.restore(snapshot: snapshot)
-            throw error
+            primaryError = error
         }
 
+        var cleanupError: Error?
         if switched {
-            try? await inputSourceService.restoreInputSource(currentSource)
+            do {
+                try await inputSourceService.restoreInputSource(currentSource)
+            } catch {
+                cleanupError = cleanupError ?? error
+            }
         }
-        try? await pasteboardService.restore(snapshot: snapshot)
+
+        do {
+            try await pasteboardService.restore(snapshot: snapshot)
+        } catch {
+            cleanupError = cleanupError ?? error
+        }
+
+        if let primaryError {
+            throw primaryError
+        }
+        if let cleanupError {
+            throw cleanupError
+        }
     }
 }

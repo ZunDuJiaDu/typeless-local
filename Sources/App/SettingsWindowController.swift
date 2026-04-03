@@ -116,7 +116,7 @@ public final class SettingsWindowController: NSWindowController {
         let configuration = currentConfiguration
         let validationErrors = configuration.validationErrors(isEnabled: llmEnabled)
         guard validationErrors.isEmpty else {
-            AppLogger.llm.error("Rejected invalid LLM settings save enabled=\(llmEnabled, privacy: .public) errors=\(validationErrors.map(\\.debugDescription).joined(separator: ", "), privacy: .public)")
+            AppLogger.llm.error("Rejected invalid LLM settings save enabled=\(llmEnabled, privacy: .public) errors=\(validationErrors.map(\.debugDescription).joined(separator: ", "), privacy: .public)")
             setStatus(validationMessage(for: validationErrors), isError: true)
             return
         }
