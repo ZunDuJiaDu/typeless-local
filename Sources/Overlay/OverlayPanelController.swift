@@ -5,6 +5,7 @@ import Foundation
 public final class OverlayPanelController {
     private let panel: NSPanel
     private let contentView = OverlayContentView(frame: .zero)
+    private var transientHideTask: Task<Void, Never>?
 
     public init() {
         panel = NSPanel(
@@ -26,11 +27,12 @@ public final class OverlayPanelController {
     }
 
     public func show(text: String) {
+        transientHideTask?.cancel()
         contentView.update(text: text, level: 0.08)
         resize(for: text, animated: false)
         positionPanel()
         applyScale(0.92)
-        panel.makeKeyAndOrderFront(nil)
+        panel.orderFront(nil)
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.35
             panel.animator().alphaValue = 1
@@ -39,6 +41,7 @@ public final class OverlayPanelController {
     }
 
     public func update(text: String, level: Double) {
+        transientHideTask?.cancel()
         contentView.update(text: text, level: level)
         resize(for: text, animated: true)
     }
@@ -47,7 +50,18 @@ public final class OverlayPanelController {
         update(text: "Refining…", level: 0.12)
     }
 
+    public func showTransient(text: String, duration: TimeInterval = 1.4) {
+        show(text: text)
+        transientHideTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            guard let self, !Task.isCancelled else { return }
+            self.hide()
+        }
+    }
+
     public func hide() {
+        transientHideTask?.cancel()
+        transientHideTask = nil
         animateScale(to: 0.96, duration: 0.22)
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.22

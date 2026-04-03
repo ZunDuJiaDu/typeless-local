@@ -49,6 +49,8 @@ public final class SettingsWindowController: NSWindowController {
         let testButton = NSButton(title: "Test", target: self, action: #selector(testLLM))
         let saveButton = NSButton(title: "Save", target: self, action: #selector(saveSettings))
         statusLabel.textColor = .secondaryLabelColor
+        statusLabel.lineBreakMode = .byWordWrapping
+        statusLabel.maximumNumberOfLines = 0
 
         let grid = NSGridView(views: [
             [labels[0], localePopup],
@@ -76,23 +78,33 @@ public final class SettingsWindowController: NSWindowController {
             localePopup.selectItem(at: index)
         }
         enableCheckbox.state = settings.isLLMRefinementEnabled ? .on : .off
-        baseURLField.stringValue = settings.llmConfiguration.baseURL
-        apiKeyField.stringValue = settings.llmConfiguration.apiKey
-        modelField.stringValue = settings.llmConfiguration.model
+        let configuration = settings.llmConfiguration.normalized()
+        baseURLField.stringValue = configuration.baseURL
+        apiKeyField.stringValue = configuration.apiKey
+        modelField.stringValue = configuration.model
     }
 
     @objc private func testLLM() {
         let config = currentConfiguration
-        statusLabel.stringValue = "Testing…"
+        let validationErrors = config.validationErrors(isEnabled: true)
+        guard validationErrors.isEmpty else {
+            AppLogger.llm.notice("Skipped LLM test because the configuration is incomplete")
+            setStatus(validationMessage(for: validationErrors), isError: true)
+            return
+        }
+
+        setStatus("Testing…", isError: false)
         Task {
             do {
                 try await llmRefinementService.testConnection(configuration: config)
                 await MainActor.run {
-                    self.statusLabel.stringValue = "Connection OK"
+                    AppLogger.llm.info("LLM connectivity test passed for baseURL=\(config.baseURL, privacy: .public) model=\(config.model, privacy: .public)")
+                    self.setStatus("Connection OK. Save to persist these values.", isError: false)
                 }
             } catch {
                 await MainActor.run {
-                    self.statusLabel.stringValue = "Test failed: \(error.localizedDescription)"
+                    AppLogger.llm.error("LLM connectivity test failed: \(String(describing: error), privacy: .public)")
+                    self.setStatus("Test failed: \(error.localizedDescription)", isError: true)
                 }
             }
         }
@@ -100,12 +112,25 @@ public final class SettingsWindowController: NSWindowController {
 
     @objc private func saveSettings() {
         let locale = RecognitionLocale.allCases[max(localePopup.indexOfSelectedItem, 0)]
+        let llmEnabled = enableCheckbox.state == .on
+        let configuration = currentConfiguration
+        let validationErrors = configuration.validationErrors(isEnabled: llmEnabled)
+        guard validationErrors.isEmpty else {
+            AppLogger.llm.error("Rejected invalid LLM settings save enabled=\(llmEnabled, privacy: .public) errors=\(validationErrors.map(\\.debugDescription).joined(separator: ", "), privacy: .public)")
+            setStatus(validationMessage(for: validationErrors), isError: true)
+            return
+        }
+
         settingsStore.settings = AppSettings(
             selectedLocale: locale,
-            isLLMRefinementEnabled: enableCheckbox.state == .on,
-            llmConfiguration: currentConfiguration
+            isLLMRefinementEnabled: llmEnabled,
+            llmConfiguration: configuration
         )
-        statusLabel.stringValue = "Saved"
+        baseURLField.stringValue = configuration.baseURL
+        apiKeyField.stringValue = configuration.apiKey
+        modelField.stringValue = configuration.model
+        AppLogger.llm.info("Saved settings locale=\(locale.rawValue, privacy: .public) enabled=\(llmEnabled, privacy: .public) configured=\(configuration.isConfigured, privacy: .public)")
+        setStatus("Saved", isError: false)
     }
 
     private var currentConfiguration: LLMConfiguration {
@@ -113,6 +138,19 @@ public final class SettingsWindowController: NSWindowController {
             baseURL: baseURLField.stringValue,
             apiKey: apiKeyField.stringValue,
             model: modelField.stringValue
-        )
+        ).normalized()
+    }
+
+    private func setStatus(_ message: String, isError: Bool) {
+        statusLabel.stringValue = message
+        statusLabel.textColor = isError ? .systemRed : .secondaryLabelColor
+    }
+
+    private func validationMessage(for errors: [LLMConfigurationValidationError]) -> String {
+        let labels = Set(errors.map(\.debugDescription))
+        if labels.count == 1, let label = labels.first {
+            return "\(label) is required when refinement is enabled."
+        }
+        return "Base URL and Model are required when refinement is enabled."
     }
 }

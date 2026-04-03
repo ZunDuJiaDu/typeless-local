@@ -3,6 +3,15 @@ import Foundation
 public enum LLMConfigurationValidationError: Error, Equatable, Sendable {
     case missingBaseURL
     case missingModel
+
+    public var debugDescription: String {
+        switch self {
+        case .missingBaseURL:
+            return "Base URL"
+        case .missingModel:
+            return "Model"
+        }
+    }
 }
 
 public struct LLMConfiguration: Codable, Equatable, Sendable {
@@ -26,8 +35,20 @@ public struct LLMConfiguration: Codable, Equatable, Sendable {
         model.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    public var normalizedAPIKey: String {
+        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     public var isConfigured: Bool {
         !normalizedBaseURL.isEmpty && !normalizedModel.isEmpty
+    }
+
+    public func normalized() -> LLMConfiguration {
+        LLMConfiguration(
+            baseURL: normalizedBaseURL,
+            apiKey: normalizedAPIKey,
+            model: normalizedModel
+        )
     }
 
     public func validationErrors(isEnabled: Bool) -> [LLMConfigurationValidationError] {
