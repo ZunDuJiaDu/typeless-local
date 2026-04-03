@@ -34,7 +34,7 @@ public final class FnKeyMonitor {
             case .started:
                 AppLogger.inputTap.info("Fn event tap started")
             case .interrupted(let reason):
-                self.interpreter.reset()
+                self.interpreter.markStateUnknown()
                 AppLogger.inputTap.error("Fn event tap interrupted: \(reason.rawValue, privacy: .public)")
             case .reenabled(let reason):
                 AppLogger.inputTap.info("Fn event tap re-enabled after \(reason.rawValue, privacy: .public) interruption")
