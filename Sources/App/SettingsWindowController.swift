@@ -77,11 +77,6 @@ public final class SettingsWindowController: NSWindowController {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    public func showInitialWindowIfNeeded() {
-        guard !settingsStore.hasCompletedWelcome else { return }
-        showMainWindow(selecting: .welcome)
-    }
-
     public func showMainWindow(selecting page: MainWindowPage? = nil) {
         if let page { display(page: page) } else { display(page: selectedPage) }
         showWindow(nil)
@@ -358,10 +353,6 @@ public final class SettingsWindowController: NSWindowController {
         ])
         comparisonGrid.rowSpacing = 12
         comparisonGrid.columnSpacing = 16
-        rawScrollView.widthAnchor.constraint(equalToConstant: 360).isActive = true
-        organizedScrollView.widthAnchor.constraint(equalToConstant: 360).isActive = true
-        rawScrollView.heightAnchor.constraint(equalToConstant: 300).isActive = true
-        organizedScrollView.heightAnchor.constraint(equalToConstant: 300).isActive = true
         let runButton = NSButton(title: "Run Test Organization", target: self, action: #selector(runTestOrganization))
         let clearButton = NSButton(title: "Clear", target: self, action: #selector(clearTestOrganization))
         let buttons = NSStackView(views: [runButton, clearButton])
@@ -438,6 +429,7 @@ public final class SettingsWindowController: NSWindowController {
 
     private func makeScrollView(for textView: NSTextView) -> NSScrollView {
         let scrollView = NSScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.borderType = .bezelBorder
@@ -448,6 +440,8 @@ public final class SettingsWindowController: NSWindowController {
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
         textView.textContainer?.widthTracksTextView = true
+        scrollView.widthAnchor.constraint(equalToConstant: 360).isActive = true
+        scrollView.heightAnchor.constraint(equalToConstant: 300).isActive = true
         scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 260).isActive = true
         return scrollView
     }
