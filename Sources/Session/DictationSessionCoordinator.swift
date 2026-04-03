@@ -31,8 +31,16 @@ public final class DictationSessionCoordinator {
     private let textInjectionService: TextInjectionService
     private let llmRefinementService: LLMRefinementService
 
+    private struct SessionDiagnostics {
+        var id: String
+        var startedAt: Date
+        var releasedAt: Date?
+        var firstPartialAt: Date?
+    }
+
     private var latestTranscript = ""
     private var finalizeTask: Task<Void, Never>?
+    private var sessionDiagnostics: SessionDiagnostics?
 
     public init(
         settingsStore: SettingsStore,
@@ -65,34 +73,47 @@ public final class DictationSessionCoordinator {
         speechService.cancel()
         overlayController.hide()
         finalizeTask?.cancel()
+        finalizeTask = nil
+        sessionDiagnostics = nil
         state = .idle
     }
 
     public func handleFnPressed() async {
         guard state == .idle else { return }
         let permissions = await permissionCoordinator.ensureReadyForRecording()
-        guard permissions.microphone == .granted, permissions.speech == .granted else {
-            permissionCoordinator.promptForAccessibilityIfNeeded()
-            onStatusChange?("Permissions needed")
+        guard permissions.isReadyForDictation else {
+            if permissions.accessibility != .granted {
+                permissionCoordinator.promptForAccessibilityIfNeeded()
+            }
+            AppLogger.permissions.notice("Dictation blocked: \(permissions.summaryText, privacy: .public)")
+            overlayController.showTransient(text: permissions.shortPrompt)
+            onStatusChange?(permissions.shortPrompt)
             return
         }
 
+        let sessionID = beginSessionDiagnostics()
         latestTranscript = ""
         state = reducer.reduce(state, event: .fnPressed)
+        AppLogger.speech.info("Session \(sessionID, privacy: .public) started locale=\(self.settingsStore.selectedLocale.rawValue, privacy: .public)")
         overlayController.show(text: "Listening…")
 
         do {
             try speechService.start(locale: settingsStore.selectedLocale)
             try audioCaptureEngine.start()
         } catch {
-            AppLogger.audio.error("Failed to start recording: \(String(describing: error), privacy: .public)")
+            AppLogger.audio.error("Session \(sessionID, privacy: .public) failed to start recording: \(String(describing: error), privacy: .public)")
             state = reducer.reduce(state, event: .failureOccurred)
-            overlayController.hide()
+            overlayController.showTransient(text: "Recording unavailable")
+            resetSessionDiagnostics()
         }
     }
 
     public func handleFnReleased() async {
         guard state == .recording else { return }
+        markSessionReleased()
+        if let sessionID = sessionDiagnostics?.id, let heldDuration = elapsedSinceSessionStartMilliseconds() {
+            AppLogger.audio.info("Session \(sessionID, privacy: .public) released after \(heldDuration, privacy: .public)ms")
+        }
         state = reducer.reduce(state, event: .fnReleased)
         audioCaptureEngine.stop()
         speechService.finish()
@@ -132,6 +153,7 @@ public final class DictationSessionCoordinator {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.latestTranscript = text
+                self.logFirstPartialIfNeeded(textCount: text.count)
                 if self.state == .recording {
                     self.overlayController.update(text: text, level: 0.2)
                 }
@@ -142,6 +164,9 @@ public final class DictationSessionCoordinator {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.latestTranscript = text
+                if let sessionID = self.sessionDiagnostics?.id {
+                    AppLogger.speech.info("Session \(sessionID, privacy: .public) final transcript length=\(text.count, privacy: .public)")
+                }
                 await self.completeSession(with: text)
             }
         }
@@ -149,12 +174,14 @@ public final class DictationSessionCoordinator {
         speechService.onError = { [weak self] error in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                AppLogger.speech.error("Speech error: \(String(describing: error), privacy: .public)")
+                let sessionID = self.sessionDiagnostics?.id ?? "n/a"
+                AppLogger.speech.error("Session \(sessionID, privacy: .public) speech error: \(String(describing: error), privacy: .public)")
                 if self.state == .finalizingASR, !self.latestTranscript.isEmpty {
                     await self.completeSession(with: self.latestTranscript)
                 } else {
                     self.state = self.reducer.reduce(self.state, event: .failureOccurred)
-                    self.overlayController.hide()
+                    self.overlayController.showTransient(text: "Speech unavailable")
+                    self.resetSessionDiagnostics()
                 }
             }
         }
@@ -162,17 +189,23 @@ public final class DictationSessionCoordinator {
 
     private func completeSession(with rawTranscript: String) async {
         finalizeTask?.cancel()
+        finalizeTask = nil
         let transcript = rawTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sessionID = sessionDiagnostics?.id ?? "n/a"
         guard !transcript.isEmpty else {
+            AppLogger.speech.notice("Session \(sessionID, privacy: .public) finished without transcript")
             state = .idle
-            overlayController.hide()
+            overlayController.showTransient(text: "No speech detected")
+            resetSessionDiagnostics()
             return
         }
 
         var finalTranscript = transcript
         if settingsStore.isLLMRefinementEnabled, settingsStore.llmConfiguration.isConfigured {
+            let llmStartedAt = Date()
             state = reducer.reduce(state, event: .refinementStarted)
             overlayController.showRefining()
+            AppLogger.llm.info("Session \(sessionID, privacy: .public) refinement started chars=\(transcript.count, privacy: .public)")
             switch await llmRefinementService.refine(
                 transcript: transcript,
                 configuration: settingsStore.llmConfiguration,
@@ -181,9 +214,11 @@ public final class DictationSessionCoordinator {
             case .refined(let refined):
                 finalTranscript = refined
                 state = reducer.reduce(state, event: .refinementFinished)
+                AppLogger.llm.info("Session \(sessionID, privacy: .public) refinement finished in \(self.milliseconds(since: llmStartedAt), privacy: .public)ms")
             case .skipped(let skipped):
                 finalTranscript = skipped
                 state = reducer.reduce(state, event: .refinementFailed)
+                AppLogger.llm.notice("Session \(sessionID, privacy: .public) refinement fell back after \(self.milliseconds(since: llmStartedAt), privacy: .public)ms")
             }
         } else {
             state = reducer.reduce(state, event: .finalTranscriptReady)
@@ -191,15 +226,65 @@ public final class DictationSessionCoordinator {
 
         do {
             state = .injecting
+            if let releaseToInjection = elapsedSinceReleaseMilliseconds() {
+                AppLogger.injection.info("Session \(sessionID, privacy: .public) release-to-injection=\(releaseToInjection, privacy: .public)ms")
+            }
+            AppLogger.injection.info("Session \(sessionID, privacy: .public) injecting chars=\(finalTranscript.count, privacy: .public)")
             try await textInjectionService.inject(text: finalTranscript)
             state = .recovering
             overlayController.hide()
             state = reducer.reduce(state, event: .recoveryFinished)
+            AppLogger.injection.info("Session \(sessionID, privacy: .public) injection completed")
+            resetSessionDiagnostics()
         } catch {
-            AppLogger.injection.error("Injection failed: \(String(describing: error), privacy: .public)")
+            AppLogger.injection.error("Session \(sessionID, privacy: .public) injection failed: \(String(describing: error), privacy: .public)")
             state = reducer.reduce(state, event: .failureOccurred)
-            overlayController.hide()
+            overlayController.showTransient(text: "Couldn't paste text")
             state = .idle
+            resetSessionDiagnostics()
         }
+    }
+
+    private func beginSessionDiagnostics() -> String {
+        let diagnostics = SessionDiagnostics(
+            id: UUID().uuidString.prefix(8).description,
+            startedAt: Date(),
+            releasedAt: nil,
+            firstPartialAt: nil
+        )
+        sessionDiagnostics = diagnostics
+        return diagnostics.id
+    }
+
+    private func markSessionReleased() {
+        guard var diagnostics = sessionDiagnostics else { return }
+        diagnostics.releasedAt = Date()
+        sessionDiagnostics = diagnostics
+    }
+
+    private func logFirstPartialIfNeeded(textCount: Int) {
+        guard var diagnostics = sessionDiagnostics, diagnostics.firstPartialAt == nil else { return }
+        diagnostics.firstPartialAt = Date()
+        sessionDiagnostics = diagnostics
+        let latency = milliseconds(since: diagnostics.startedAt)
+        AppLogger.speech.info("Session \(diagnostics.id, privacy: .public) first partial after \(latency, privacy: .public)ms len=\(textCount, privacy: .public)")
+    }
+
+    private func elapsedSinceSessionStartMilliseconds() -> Int? {
+        guard let startedAt = sessionDiagnostics?.startedAt else { return nil }
+        return milliseconds(since: startedAt)
+    }
+
+    private func elapsedSinceReleaseMilliseconds() -> Int? {
+        guard let releasedAt = sessionDiagnostics?.releasedAt else { return nil }
+        return milliseconds(since: releasedAt)
+    }
+
+    private func milliseconds(since start: Date) -> Int {
+        Int(Date().timeIntervalSince(start) * 1_000)
+    }
+
+    private func resetSessionDiagnostics() {
+        sessionDiagnostics = nil
     }
 }
