@@ -14,7 +14,7 @@ public final class DictationSessionCoordinator {
         case .idle: return "Ready"
         case .recording: return "Recording"
         case .finalizingASR: return "Finalizing"
-        case .refining: return "Refining"
+        case .refining: return "Organizing"
         case .injecting: return "Injecting"
         case .recovering: return "Recovering"
         case .failed: return "Error"
@@ -29,7 +29,7 @@ public final class DictationSessionCoordinator {
     private let speechService: SpeechRecognitionService
     private let overlayController: OverlayPanelController
     private let textInjectionService: TextInjectionService
-    private let llmRefinementService: LLMRefinementService
+    private let textOrganizationService: TextOrganizationService
 
     private struct SessionDiagnostics {
         var id: String
@@ -50,7 +50,7 @@ public final class DictationSessionCoordinator {
         speechService: SpeechRecognitionService,
         overlayController: OverlayPanelController,
         textInjectionService: TextInjectionService,
-        llmRefinementService: LLMRefinementService
+        textOrganizationService: TextOrganizationService
     ) {
         self.settingsStore = settingsStore
         self.permissionCoordinator = permissionCoordinator
@@ -59,7 +59,7 @@ public final class DictationSessionCoordinator {
         self.speechService = speechService
         self.overlayController = overlayController
         self.textInjectionService = textInjectionService
-        self.llmRefinementService = llmRefinementService
+        self.textOrganizationService = textOrganizationService
         wireCallbacks()
     }
 
@@ -201,24 +201,30 @@ public final class DictationSessionCoordinator {
         }
 
         var finalTranscript = transcript
-        if settingsStore.isLLMRefinementEnabled, settingsStore.llmConfiguration.isConfigured {
-            let llmStartedAt = Date()
+        let organizationSettings = settingsStore.textOrganizationSettings
+        if organizationSettings.isEnabled, organizationSettings.validationErrors().isEmpty {
+            let organizationStartedAt = Date()
             state = reducer.reduce(state, event: .refinementStarted)
             overlayController.showRefining()
-            AppLogger.llm.info("Session \(sessionID, privacy: .public) refinement started chars=\(transcript.count, privacy: .public)")
-            switch await llmRefinementService.refine(
-                transcript: transcript,
-                configuration: settingsStore.llmConfiguration,
-                isEnabled: settingsStore.isLLMRefinementEnabled
+            AppLogger.llm.info(
+                "Session \(sessionID, privacy: .public) organization started provider=\(organizationSettings.activeProviderDisplayName, privacy: .public) chars=\(transcript.count, privacy: .public)"
+            )
+            switch await textOrganizationService.organize(
+                text: transcript,
+                settings: organizationSettings
             ) {
-            case .refined(let refined):
-                finalTranscript = refined
+            case .organized(let organized):
+                finalTranscript = organized
                 state = reducer.reduce(state, event: .refinementFinished)
-                AppLogger.llm.info("Session \(sessionID, privacy: .public) refinement finished in \(self.milliseconds(since: llmStartedAt), privacy: .public)ms")
+                AppLogger.llm.info(
+                    "Session \(sessionID, privacy: .public) organization finished in \(self.milliseconds(since: organizationStartedAt), privacy: .public)ms"
+                )
             case .skipped(let skipped):
                 finalTranscript = skipped
                 state = reducer.reduce(state, event: .refinementFailed)
-                AppLogger.llm.notice("Session \(sessionID, privacy: .public) refinement fell back after \(self.milliseconds(since: llmStartedAt), privacy: .public)ms")
+                AppLogger.llm.notice(
+                    "Session \(sessionID, privacy: .public) organization fell back after \(self.milliseconds(since: organizationStartedAt), privacy: .public)ms"
+                )
             }
         } else {
             state = reducer.reduce(state, event: .finalTranscriptReady)

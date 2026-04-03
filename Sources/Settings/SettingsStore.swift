@@ -5,6 +5,7 @@ public final class SettingsStore {
         static let selectedLocale = "settings.selectedLocale"
         static let isLLMRefinementEnabled = "settings.isLLMRefinementEnabled"
         static let llmConfiguration = "settings.llmConfiguration"
+        static let textOrganizationSettings = "settings.textOrganizationSettings"
     }
 
     private let userDefaults: UserDefaults
@@ -21,29 +22,48 @@ public final class SettingsStore {
     }
 
     public var isLLMRefinementEnabled: Bool {
-        get {
-            if userDefaults.object(forKey: Keys.isLLMRefinementEnabled) == nil {
-                return false
+        get { textOrganizationSettings.isEnabled }
+        set {
+            var settings = textOrganizationSettings
+            settings.isEnabled = newValue
+            if newValue, settings.openAICompatibleConfiguration.isConfigured {
+                settings.preferredProvider = .openAICompatible
             }
-            return userDefaults.bool(forKey: Keys.isLLMRefinementEnabled)
+            textOrganizationSettings = settings
         }
-        set { userDefaults.set(newValue, forKey: Keys.isLLMRefinementEnabled) }
     }
 
     public var llmConfiguration: LLMConfiguration {
-        get {
-            guard
-                let data = userDefaults.data(forKey: Keys.llmConfiguration),
-                let config = try? decoder.decode(LLMConfiguration.self, from: data)
-            else {
-                return .empty
+        get { textOrganizationSettings.openAICompatibleConfiguration }
+        set {
+            var settings = textOrganizationSettings
+            settings.openAICompatibleConfiguration = newValue.normalized()
+            if settings.openAICompatibleConfiguration.isConfigured {
+                settings.preferredProvider = .openAICompatible
             }
-            return config
+            textOrganizationSettings = settings
+        }
+    }
+
+    public var textOrganizationSettings: TextOrganizationSettings {
+        get {
+            if let settings = loadTextOrganizationSettings() {
+                return settings
+            }
+
+            let legacyEnabled = legacyLLMRefinementEnabled()
+            let legacyConfiguration = legacyLLMConfiguration()
+            return TextOrganizationSettings.fromLegacy(
+                isEnabled: legacyEnabled,
+                openAICompatibleConfiguration: legacyConfiguration
+            )
         }
         set {
-            if let data = try? encoder.encode(newValue) {
-                userDefaults.set(data, forKey: Keys.llmConfiguration)
+            let normalized = newValue.normalized()
+            if let data = try? encoder.encode(normalized) {
+                userDefaults.set(data, forKey: Keys.textOrganizationSettings)
             }
+            syncLegacyLLMSettings(from: normalized)
         }
     }
 
@@ -51,14 +71,50 @@ public final class SettingsStore {
         get {
             AppSettings(
                 selectedLocale: selectedLocale,
-                isLLMRefinementEnabled: isLLMRefinementEnabled,
-                llmConfiguration: llmConfiguration
+                textOrganizationSettings: textOrganizationSettings
             )
         }
         set {
             selectedLocale = newValue.selectedLocale
-            isLLMRefinementEnabled = newValue.isLLMRefinementEnabled
-            llmConfiguration = newValue.llmConfiguration
+            textOrganizationSettings = newValue.textOrganizationSettings
+        }
+    }
+
+    private func loadTextOrganizationSettings() -> TextOrganizationSettings? {
+        guard
+            let data = userDefaults.data(forKey: Keys.textOrganizationSettings),
+            let settings = try? decoder.decode(TextOrganizationSettings.self, from: data)
+        else {
+            return nil
+        }
+        return settings.normalized()
+    }
+
+    private func legacyLLMRefinementEnabled() -> Bool {
+        guard userDefaults.object(forKey: Keys.isLLMRefinementEnabled) != nil else {
+            return false
+        }
+        return userDefaults.bool(forKey: Keys.isLLMRefinementEnabled)
+    }
+
+    private func legacyLLMConfiguration() -> LLMConfiguration {
+        guard
+            let data = userDefaults.data(forKey: Keys.llmConfiguration),
+            let config = try? decoder.decode(LLMConfiguration.self, from: data)
+        else {
+            return .empty
+        }
+        return config.normalized()
+    }
+
+    private func syncLegacyLLMSettings(from settings: TextOrganizationSettings) {
+        userDefaults.set(
+            settings.isEnabled && settings.preferredProvider == .openAICompatible,
+            forKey: Keys.isLLMRefinementEnabled
+        )
+
+        if let data = try? encoder.encode(settings.openAICompatibleConfiguration.normalized()) {
+            userDefaults.set(data, forKey: Keys.llmConfiguration)
         }
     }
 }

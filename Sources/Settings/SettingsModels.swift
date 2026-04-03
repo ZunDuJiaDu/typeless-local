@@ -2,8 +2,15 @@ import Foundation
 
 public struct AppSettings: Codable, Equatable, Sendable {
     public var selectedLocale: RecognitionLocale
-    public var isLLMRefinementEnabled: Bool
-    public var llmConfiguration: LLMConfiguration
+    public var textOrganizationSettings: TextOrganizationSettings
+
+    public init(
+        selectedLocale: RecognitionLocale = .default,
+        textOrganizationSettings: TextOrganizationSettings = .default
+    ) {
+        self.selectedLocale = selectedLocale
+        self.textOrganizationSettings = textOrganizationSettings
+    }
 
     public init(
         selectedLocale: RecognitionLocale = .default,
@@ -11,7 +18,19 @@ public struct AppSettings: Codable, Equatable, Sendable {
         llmConfiguration: LLMConfiguration = .empty
     ) {
         self.selectedLocale = selectedLocale
-        self.isLLMRefinementEnabled = isLLMRefinementEnabled
-        self.llmConfiguration = llmConfiguration
+        self.textOrganizationSettings = TextOrganizationSettings.fromLegacy(
+            isEnabled: isLLMRefinementEnabled,
+            openAICompatibleConfiguration: llmConfiguration
+        )
+    }
+
+    public var isLLMRefinementEnabled: Bool {
+        get { textOrganizationSettings.isEnabled }
+        set { textOrganizationSettings.isEnabled = newValue }
+    }
+
+    public var llmConfiguration: LLMConfiguration {
+        get { textOrganizationSettings.openAICompatibleConfiguration }
+        set { textOrganizationSettings.openAICompatibleConfiguration = newValue.normalized() }
     }
 }

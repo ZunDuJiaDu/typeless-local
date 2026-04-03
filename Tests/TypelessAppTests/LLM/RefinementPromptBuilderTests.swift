@@ -2,14 +2,15 @@ import Testing
 @testable import WuZi
 
 struct RefinementPromptBuilderTests {
-    @Test func systemPromptForbidsRewriting() {
-        let prompt = RefinementPromptBuilder.systemPrompt
-        #expect(prompt.contains("不要改写"))
-        #expect(prompt.contains("必须原样返回"))
+    @Test func systemPromptPreservesMeaningToneAndStructure() {
+        let prompt = TextOrganizationPromptBuilder.systemPrompt(options: .default)
+        #expect(prompt.contains("严格保持原意"))
+        #expect(prompt.contains("保留说话者原本的语气"))
+        #expect(prompt.contains("结构意图"))
     }
 
     @Test func userPromptCarriesRawTranscript() {
-        let prompt = RefinementPromptBuilder.userPrompt(for: "配森 杰森")
+        let prompt = TextOrganizationPromptBuilder.userPrompt(for: "配森 杰森")
         #expect(prompt.contains("配森 杰森"))
     }
 }

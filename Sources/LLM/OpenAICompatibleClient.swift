@@ -29,12 +29,16 @@ public final class OpenAICompatibleClient: @unchecked Sendable {
         self.session = session
     }
 
-    public func refine(transcript: String, configuration: LLMConfiguration) async throws -> String {
+    public func organize(
+        text: String,
+        configuration: LLMConfiguration,
+        options: TextOrganizationOptions
+    ) async throws -> String {
         let endpoint = configuration.normalizedBaseURL.hasSuffix("/chat/completions")
             ? configuration.normalizedBaseURL
             : configuration.normalizedBaseURL + "/chat/completions"
         guard let url = URL(string: endpoint) else {
-            return transcript
+            return text
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -45,18 +49,29 @@ public final class OpenAICompatibleClient: @unchecked Sendable {
         let payload = OpenAIChatCompletionRequest(
             model: configuration.normalizedModel,
             messages: [
-                .init(role: "system", content: RefinementPromptBuilder.systemPrompt),
-                .init(role: "user", content: RefinementPromptBuilder.userPrompt(for: transcript))
+                .init(role: "system", content: TextOrganizationPromptBuilder.systemPrompt(options: options)),
+                .init(role: "user", content: TextOrganizationPromptBuilder.userPrompt(for: text))
             ],
             temperature: 0
         )
         request.httpBody = try JSONEncoder().encode(payload)
         let (data, _) = try await session.data(for: request)
         let response = try JSONDecoder().decode(OpenAIChatCompletionResponse.self, from: data)
-        return response.choices.first?.message.content.trimmingCharacters(in: .whitespacesAndNewlines) ?? transcript
+        return response.choices.first?.message.content.trimmingCharacters(in: .whitespacesAndNewlines) ?? text
     }
 
-    public func test(configuration: LLMConfiguration) async throws {
-        _ = try await refine(transcript: "测试 JSON Python", configuration: configuration)
+    public func test(
+        configuration: LLMConfiguration,
+        options: TextOrganizationOptions = .default
+    ) async throws {
+        _ = try await organize(
+            text: "请帮我整理这段包含 JSON 和 Python 的混合语音转录",
+            configuration: configuration,
+            options: options
+        )
+    }
+
+    public func refine(transcript: String, configuration: LLMConfiguration) async throws -> String {
+        try await organize(text: transcript, configuration: configuration, options: .default)
     }
 }

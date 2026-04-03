@@ -59,7 +59,7 @@ public final class StatusItemController: NSObject {
         menu.setSubmenu(languageMenu, for: languageMenuItem)
         menu.addItem(languageMenuItem)
 
-        let llmMenuItem = NSMenuItem(title: "LLM Refinement", action: nil, keyEquivalent: "")
+        let llmMenuItem = NSMenuItem(title: "Text Organization", action: nil, keyEquivalent: "")
         let llmMenu = NSMenu()
         let toggle = NSMenuItem(title: "Enabled", action: #selector(toggleLLM(_:)), keyEquivalent: "")
         toggle.target = self
