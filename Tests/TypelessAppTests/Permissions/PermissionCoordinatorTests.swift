@@ -26,3 +26,14 @@ struct AccessibilityPromptGateTests {
         #expect(!secondGranted)
     }
 }
+
+
+struct PermissionSnapshotBehaviorTests {
+    @Test func recordingCanProceedWithoutAccessibility() {
+        let snapshot = PermissionSnapshot(microphone: .granted, speech: .granted, accessibility: .denied)
+        #expect(snapshot.isReadyForRecording)
+        #expect(!snapshot.isReadyForAutomaticInjection)
+        #expect(snapshot.summaryText == "Recording ready; Accessibility needed for auto-paste")
+        #expect(snapshot.shortPrompt == "Grant Accessibility for auto-paste")
+    }
+}

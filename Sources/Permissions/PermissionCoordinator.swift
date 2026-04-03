@@ -24,12 +24,9 @@ public enum PermissionState: String, Sendable {
 
     public var statusLabel: String {
         switch self {
-        case .unknown:
-            return "Needs approval"
-        case .granted:
-            return "Granted"
-        case .denied:
-            return "Denied"
+        case .unknown: return "Needs approval"
+        case .granted: return "Granted"
+        case .denied: return "Denied"
         }
     }
 }
@@ -41,12 +38,9 @@ public enum PermissionRequirement: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .microphone:
-            return "Microphone"
-        case .speech:
-            return "Speech Recognition"
-        case .accessibility:
-            return "Accessibility"
+        case .microphone: return "Microphone"
+        case .speech: return "Speech Recognition"
+        case .accessibility: return "Accessibility"
         }
     }
 }
@@ -64,26 +58,50 @@ public struct PermissionSnapshot: Sendable {
         return missing
     }
 
+    public var missingRecordingRequirements: [PermissionRequirement] {
+        var missing: [PermissionRequirement] = []
+        if microphone != .granted { missing.append(.microphone) }
+        if speech != .granted { missing.append(.speech) }
+        return missing
+    }
+
+    public var isReadyForRecording: Bool {
+        missingRecordingRequirements.isEmpty
+    }
+
+    public var isReadyForAutomaticInjection: Bool {
+        accessibility == .granted
+    }
+
     public var isReadyForDictation: Bool {
-        missingRequirements.isEmpty
+        isReadyForRecording && isReadyForAutomaticInjection
     }
 
     public var summaryText: String {
-        guard !missingRequirements.isEmpty else { return "Ready" }
-        return "Needs \(missingRequirements.map(\.title).joined(separator: " + "))"
+        if isReadyForDictation { return "Ready" }
+        if isReadyForRecording && !isReadyForAutomaticInjection {
+            return "Recording ready; Accessibility needed for auto-paste"
+        }
+        return "Needs \(missingRecordingRequirements.map(\.title).joined(separator: " + "))"
     }
 
     public var shortPrompt: String {
-        guard !missingRequirements.isEmpty else { return "Ready" }
-        return "Grant \(missingRequirements.map(\.title).joined(separator: " + "))"
+        if isReadyForRecording && !isReadyForAutomaticInjection {
+            return "Grant Accessibility for auto-paste"
+        }
+        guard !missingRecordingRequirements.isEmpty else { return "Ready" }
+        return "Grant \(missingRecordingRequirements.map(\.title).joined(separator: " + "))"
     }
 
     public var troubleshootingText: String {
         if isReadyForDictation {
             return "All required permissions are granted. WuZi should be ready to listen and paste."
         }
+        if isReadyForRecording && !isReadyForAutomaticInjection {
+            return "WuZi can already record and transcribe. Accessibility is still needed for automatic paste/injection into the focused app."
+        }
 
-        let steps = missingRequirements.map { requirement -> String in
+        let steps = missingRecordingRequirements.map { requirement -> String in
             switch requirement {
             case .microphone:
                 return "• System Settings → Privacy & Security → Microphone → enable WuZi"
@@ -95,7 +113,7 @@ public struct PermissionSnapshot: Sendable {
         }
 
         return """
-        WuZi needs the following before it can start and paste safely:
+        WuZi needs the following before it can start listening:
         \(steps.joined(separator: "\n"))
         """
     }

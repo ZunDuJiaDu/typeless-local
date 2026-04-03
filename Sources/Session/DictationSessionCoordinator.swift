@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 @MainActor
@@ -81,7 +82,7 @@ public final class DictationSessionCoordinator {
     public func handleFnPressed() async {
         guard state == .idle else { return }
         let permissions = await permissionCoordinator.ensureReadyForRecording()
-        guard permissions.isReadyForDictation else {
+        guard permissions.isReadyForRecording else {
             if permissions.accessibility != .granted {
                 permissionCoordinator.promptForAccessibilityIfNeeded()
             }
@@ -234,6 +235,14 @@ public final class DictationSessionCoordinator {
             if let releaseToInjection = elapsedSinceReleaseMilliseconds() {
                 AppLogger.injection.info("Session \(sessionID, privacy: .public) release-to-injection=\(releaseToInjection, privacy: .public)ms")
             }
+            if !permissionCoordinator.snapshot().isReadyForAutomaticInjection {
+                try await copyTranscriptToPasteboard(finalTranscript)
+                AppLogger.injection.notice("Session \(sessionID, privacy: .public) copied transcript because Accessibility is unavailable")
+                overlayController.showTransient(text: "Transcript copied — enable Accessibility for auto-paste")
+                state = .idle
+                resetSessionDiagnostics()
+                return
+            }
             AppLogger.injection.info("Session \(sessionID, privacy: .public) injecting chars=\(finalTranscript.count, privacy: .public)")
             try await textInjectionService.inject(text: finalTranscript)
             state = .recovering
@@ -291,5 +300,11 @@ public final class DictationSessionCoordinator {
 
     private func resetSessionDiagnostics() {
         sessionDiagnostics = nil
+    }
+
+    private func copyTranscriptToPasteboard(_ text: String) async throws {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
     }
 }
