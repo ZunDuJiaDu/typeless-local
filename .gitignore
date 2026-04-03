@@ -1,0 +1,4 @@
+.omx/
+.build/
+dist/
+.DS_Store
