@@ -54,6 +54,27 @@ struct FnEventInterpreterTests {
         #expect(duplicateRelease.shouldSuppress)
     }
 
+
+    @Test func resetClearsStaleFnStateAfterMissedRelease() {
+        let interpreter = FnEventInterpreter()
+
+        _ = interpreter.interpret(
+            type: .flagsChanged,
+            keyCode: CGKeyCode(kVK_Function),
+            flags: .maskSecondaryFn
+        )
+
+        interpreter.reset()
+
+        let pressAfterReset = interpreter.interpret(
+            type: .flagsChanged,
+            keyCode: CGKeyCode(kVK_Function),
+            flags: .maskSecondaryFn
+        )
+        #expect(pressAfterReset.event == .pressed)
+        #expect(pressAfterReset.shouldSuppress)
+    }
+
     @Test func nonFunctionModifierChangesWhileFnIsHeldAreNotSuppressed() {
         let interpreter = FnEventInterpreter()
 
