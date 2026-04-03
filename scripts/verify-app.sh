@@ -38,3 +38,7 @@ printf 'LSUIElement=%s, LSMinimumSystemVersion=%s, CFBundleExecutable=%s\n' \
 printf '\n== codesign verify ==\n'
 codesign --verify --deep --strict "${APP_PATH}"
 printf 'codesign verification passed\n'
+
+printf '\n== installed app bundle note ==\n'
+printf "Use an installed app bundle for manual TCC / Accessibility validation (for example %s or %s).\n" "${HOME}/Applications/${APP_NAME}.app" "/Applications/${APP_NAME}.app"
+printf "A freshly rebuilt dist/${APP_NAME}.app is appropriate for packaging checks, but macOS may treat it as a new app identity.\n"

@@ -39,6 +39,22 @@ struct BrandingMigrationTests {
         #expect(manualChecklist.contains("# WuZi verification checklist"))
         #expect(manualChecklist.contains("dist/WuZi.app"))
     }
+
+    @Test func installAndRunScriptsDocumentInstalledBundleValidationPath() throws {
+        let runScript = try readFile(at: "scripts/run-app.sh")
+        #expect(runScript.contains("RUN_FROM_DIST"))
+        #expect(runScript.contains("USER_APP=\"${HOME}/Applications/${APP_NAME}.app\""))
+        #expect(runScript.contains("SYSTEM_APP=\"/Applications/${APP_NAME}.app\""))
+        #expect(runScript.contains("freshly rebuilt dist/${APP_NAME}.app"))
+
+        let installScript = try readFile(at: "scripts/install-app.sh")
+        #expect(installScript.contains("manual validation"))
+        #expect(installScript.contains("dist/${APP_NAME}.app"))
+
+        let verifyScript = try readFile(at: "scripts/verify-app.sh")
+        #expect(verifyScript.contains("installed app bundle"))
+        #expect(verifyScript.contains("TCC"))
+    }
 }
 
 private func loadPlist(at relativePath: String) throws -> [String: Any] {
