@@ -66,22 +66,22 @@ public struct PermissionSnapshot: Sendable {
 
     public var troubleshootingText: String {
         if isReadyForDictation {
-            return "All required permissions are granted. Typeless should be ready to listen and paste."
+            return "All required permissions are granted. WuZi should be ready to listen and paste."
         }
 
         let steps = missingRequirements.map { requirement -> String in
             switch requirement {
             case .microphone:
-                return "• System Settings → Privacy & Security → Microphone → enable Typeless"
+                return "• System Settings → Privacy & Security → Microphone → enable WuZi"
             case .speech:
-                return "• System Settings → Privacy & Security → Speech Recognition → enable Typeless"
+                return "• System Settings → Privacy & Security → Speech Recognition → enable WuZi"
             case .accessibility:
-                return "• System Settings → Privacy & Security → Accessibility → enable Typeless"
+                return "• System Settings → Privacy & Security → Accessibility → enable WuZi"
             }
         }
 
         return """
-        Typeless needs the following before it can start and paste safely:
+        WuZi needs the following before it can start and paste safely:
         \(steps.joined(separator: "\n"))
         """
     }

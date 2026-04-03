@@ -1,4 +1,4 @@
-# Typeless verification checklist
+# WuZi verification checklist
 
 This checklist is for real-machine validation of the macOS menu-bar voice IME after `make verify` passes.
 
@@ -14,9 +14,9 @@ This currently verifies:
 - `swift test`
 - `swift build`
 - `.app` bundle packaging via `scripts/build-app.sh`
-- expected bundle structure (`Contents/MacOS/Typeless`, `Contents/Info.plist`)
+- expected bundle structure (`Contents/MacOS/WuZi`, `Contents/Info.plist`)
 - `Info.plist` packaging keys (`LSUIElement`, minimum macOS version, executable name, permission usage strings)
-- `codesign --verify --deep --strict dist/Typeless.app`
+- `codesign --verify --deep --strict dist/WuZi.app`
 
 ## Manual validation matrix
 
@@ -53,7 +53,7 @@ This currently verifies:
 - Inspect input-tap logs:
 
 ```bash
-log stream --style compact --predicate 'subsystem == "TypelessApp" && category == "inputTap"'
+log stream --style compact --predicate 'subsystem == "WuZiApp" && category == "inputTap"'
 ```
 
 ### Speech starts but no transcript appears
@@ -61,7 +61,7 @@ log stream --style compact --predicate 'subsystem == "TypelessApp" && category =
 - Inspect speech/audio logs:
 
 ```bash
-log stream --style compact --predicate 'subsystem == "TypelessApp" && (category == "permissions" || category == "audio" || category == "speech")'
+log stream --style compact --predicate 'subsystem == "WuZiApp" && (category == "permissions" || category == "audio" || category == "speech")'
 ```
 
 ### Paste injection fails or restores the wrong input source
@@ -70,15 +70,15 @@ log stream --style compact --predicate 'subsystem == "TypelessApp" && (category 
 - Inspect injection logs:
 
 ```bash
-log stream --style compact --predicate 'subsystem == "TypelessApp" && category == "injection"'
+log stream --style compact --predicate 'subsystem == "WuZiApp" && category == "injection"'
 ```
 
 ### Packaging/signing suspicion
 - Re-run `make verify`.
-- Confirm the built bundle is `dist/Typeless.app`.
+- Confirm the built bundle is `dist/WuZi.app`.
 - Inspect bundle metadata:
 
 ```bash
-/usr/libexec/PlistBuddy -c 'Print' dist/Typeless.app/Contents/Info.plist
-codesign --verify --deep --strict dist/Typeless.app
+/usr/libexec/PlistBuddy -c 'Print' dist/WuZi.app/Contents/Info.plist
+codesign --verify --deep --strict dist/WuZi.app
 ```

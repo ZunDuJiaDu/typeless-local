@@ -1,6 +1,6 @@
-# Typeless
+# WuZi / 无字
 
-Typeless is a macOS 14+ menu-bar voice IME built with SwiftPM and AppKit.
+WuZi / 无字 is a macOS 14+ menu-bar voice IME built with SwiftPM and AppKit.
 
 ## Current implementation
 - LSUIElement app bundle packaging via `make build`
@@ -30,6 +30,6 @@ make clean
 
 
 ## Install location
-- `make install` defaults to `~/Applications/Typeless.app`
-- `make install-system` installs to `/Applications/Typeless.app`
+- `make install` defaults to `~/Applications/WuZi.app`
+- `make install-system` installs to `/Applications/WuZi.app`
 - If both exist, macOS may open the wrong one if you launch the stale app manually.

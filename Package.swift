@@ -2,17 +2,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "Typeless",
+    name: "WuZi",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .library(name: "TypelessKit", targets: ["Typeless"]),
-        .executable(name: "Typeless", targets: ["TypelessApp"])
+        .library(name: "WuZiKit", targets: ["WuZi"]),
+        .executable(name: "WuZi", targets: ["WuZiApp"])
     ],
     targets: [
         .target(
-            name: "Typeless",
+            name: "WuZi",
             path: "Sources",
             exclude: ["TypelessApp"],
             sources: [
@@ -31,13 +31,13 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "TypelessApp",
-            dependencies: ["Typeless"],
+            name: "WuZiApp",
+            dependencies: ["WuZi"],
             path: "Sources/TypelessApp"
         ),
         .testTarget(
-            name: "TypelessTests",
-            dependencies: ["Typeless"],
+            name: "WuZiTests",
+            dependencies: ["WuZi"],
             path: "Tests/TypelessAppTests"
         )
     ]

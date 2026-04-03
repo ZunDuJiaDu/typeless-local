@@ -1,7 +1,7 @@
 import Carbon.HIToolbox
 import CoreGraphics
 import Testing
-@testable import Typeless
+@testable import WuZi
 
 struct FnEventInterpreterTests {
     @Test func functionKeyTransitionsEmitSemanticEventsAndStaySuppressed() {

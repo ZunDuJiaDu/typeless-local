@@ -22,7 +22,7 @@ public final class SettingsWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Typeless Settings"
+        window.title = "WuZi Settings"
         super.init(window: window)
         configureUI()
         loadFromSettings()

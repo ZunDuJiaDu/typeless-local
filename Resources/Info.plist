@@ -5,13 +5,13 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>Typeless</string>
+    <string>WuZi</string>
     <key>CFBundleIdentifier</key>
-    <string>com.typeless.local</string>
+    <string>com.wuzi.local</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Typeless</string>
+    <string>WuZi</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -23,8 +23,8 @@
     <key>LSUIElement</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Typeless needs microphone access to capture dictation audio.</string>
+    <string>WuZi needs microphone access to capture dictation audio.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Typeless needs speech recognition access to transcribe dictation audio.</string>
+    <string>WuZi needs speech recognition access to transcribe dictation audio.</string>
 </dict>
 </plist>

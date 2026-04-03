@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Typeless
+@testable import WuZi
 
 struct SettingsStoreTests {
     @Test func defaultsToSimplifiedChinese() {

@@ -33,9 +33,9 @@ public final class StatusItemController: NSObject {
 
     private func configureButton() {
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Typeless")
+            button.image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "WuZi")
             button.imagePosition = .imageOnly
-            button.toolTip = "Typeless"
+            button.toolTip = "WuZi"
         }
     }
 
@@ -81,7 +81,7 @@ public final class StatusItemController: NSObject {
         menu.addItem(startStop)
 
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "Quit Typeless", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit WuZi", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
 

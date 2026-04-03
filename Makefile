@@ -1,4 +1,4 @@
-APP_NAME := Typeless
+APP_NAME := WuZi
 INSTALL_DIR ?= $(HOME)/Applications
 
 .PHONY: build run install install-system clean test verify

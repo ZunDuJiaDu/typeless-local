@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="Typeless"
+APP_NAME="WuZi"
 
 printf '== swift test ==\n'
 (cd "${ROOT_DIR}" && swift test)

@@ -1,5 +1,5 @@
 import AppKit
-import Typeless
+import WuZi
 
 let application = NSApplication.shared
 let delegate = AppDelegate()
