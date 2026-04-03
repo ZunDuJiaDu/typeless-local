@@ -5,6 +5,18 @@ public enum CGEventTapManagerError: Error {
     case creationFailed
 }
 
+public enum CGEventTapInterruptionReason: String, Equatable {
+    case timeout
+    case userInput
+}
+
+public enum CGEventTapDiagnostic: Equatable {
+    case started
+    case interrupted(CGEventTapInterruptionReason)
+    case reenabled(CGEventTapInterruptionReason)
+    case stopped
+}
+
 public final class CGEventTapManager {
     public typealias Handler = (CGEventType, CGEvent) -> Unmanaged<CGEvent>?
 
@@ -12,6 +24,8 @@ public final class CGEventTapManager {
     private let handler: Handler
     private var machPort: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+
+    public var onDiagnostic: ((CGEventTapDiagnostic) -> Void)?
 
     public init(eventMask: CGEventMask, handler: @escaping Handler) {
         self.eventMask = eventMask
@@ -31,9 +45,7 @@ public final class CGEventTapManager {
             }
             let manager = Unmanaged<CGEventTapManager>.fromOpaque(userInfo).takeUnretainedValue()
             if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                if let port = manager.machPort {
-                    CGEvent.tapEnable(tap: port, enable: true)
-                }
+                manager.handleInterruption(type: type)
                 return Unmanaged.passUnretained(event)
             }
             return manager.handler(type, event)
@@ -55,6 +67,7 @@ public final class CGEventTapManager {
         CGEvent.tapEnable(tap: machPort, enable: true)
         self.machPort = machPort
         self.runLoopSource = source
+        onDiagnostic?(.started)
     }
 
     public func stop() {
@@ -66,5 +79,26 @@ public final class CGEventTapManager {
         }
         runLoopSource = nil
         machPort = nil
+        onDiagnostic?(.stopped)
+    }
+
+    private func handleInterruption(type: CGEventType) {
+        guard let reason = interruptionReason(for: type) else { return }
+        onDiagnostic?(.interrupted(reason))
+        if let port = machPort {
+            CGEvent.tapEnable(tap: port, enable: true)
+            onDiagnostic?(.reenabled(reason))
+        }
+    }
+
+    private func interruptionReason(for type: CGEventType) -> CGEventTapInterruptionReason? {
+        switch type {
+        case .tapDisabledByTimeout:
+            .timeout
+        case .tapDisabledByUserInput:
+            .userInput
+        default:
+            nil
+        }
     }
 }

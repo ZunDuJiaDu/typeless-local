@@ -12,8 +12,14 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             try environment.sessionCoordinator.start()
         } catch {
-            AppLogger.inputTap.error("Failed to start Fn monitor: \(String(describing: error), privacy: .public)")
-            environment.statusItemController.updateStatus("Fn monitor unavailable")
+            let permissions = environment.permissionCoordinator.snapshot()
+            AppLogger.inputTap.error(
+                "Failed to start Fn monitor: \(String(describing: error), privacy: .public) | mic=\(permissions.microphone.rawValue, privacy: .public) speech=\(permissions.speech.rawValue, privacy: .public) ax=\(permissions.accessibility.rawValue, privacy: .public)"
+            )
+            let fallbackStatus = permissions.accessibility == .granted
+                ? "Fn monitor unavailable"
+                : "Enable Accessibility for Fn"
+            environment.statusItemController.updateStatus(fallbackStatus)
         }
     }
 
