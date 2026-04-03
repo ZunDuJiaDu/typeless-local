@@ -18,7 +18,7 @@ public final class SpeechRecognitionService {
         let recognizer = SFSpeechRecognizer(locale: Locale(identifier: locale.localeIdentifier))
         recognizer?.defaultTaskHint = .dictation
         guard let recognizer else {
-            throw NSError(domain: "Typeless.Speech", code: 1)
+            throw NSError(domain: "WuZi.Speech", code: 1)
         }
 
         let request = SFSpeechAudioBufferRecognitionRequest()

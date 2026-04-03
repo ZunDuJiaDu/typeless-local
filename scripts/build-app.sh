@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-release}"
-APP_NAME="Typeless"
+APP_NAME="WuZi"
 APP_DIR="${ROOT_DIR}/dist/${APP_NAME}.app"
 BIN_DIR="$(cd "${ROOT_DIR}" && swift build -c "${CONFIGURATION}" --product "${APP_NAME}" >/dev/null && swift build -c "${CONFIGURATION}" --show-bin-path)"
 BIN_PATH="${BIN_DIR}/${APP_NAME}"

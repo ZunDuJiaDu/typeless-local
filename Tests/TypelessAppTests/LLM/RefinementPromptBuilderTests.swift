@@ -1,5 +1,5 @@
 import Testing
-@testable import Typeless
+@testable import WuZi
 
 struct RefinementPromptBuilderTests {
     @Test func systemPromptForbidsRewriting() {

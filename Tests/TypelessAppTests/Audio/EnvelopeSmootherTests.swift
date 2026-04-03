@@ -1,5 +1,5 @@
 import Testing
-@testable import Typeless
+@testable import WuZi
 
 struct EnvelopeSmootherTests {
     @Test func attackRespondsFasterThanRelease() {

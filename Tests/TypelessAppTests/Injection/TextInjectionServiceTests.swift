@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Typeless
+@testable import WuZi
 
 @MainActor
 struct TextInjectionServiceTests {
