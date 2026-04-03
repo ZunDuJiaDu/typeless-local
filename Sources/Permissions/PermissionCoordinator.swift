@@ -7,12 +7,84 @@ public enum PermissionState: String, Sendable {
     case unknown
     case granted
     case denied
+
+    public var statusLabel: String {
+        switch self {
+        case .unknown:
+            return "Needs approval"
+        case .granted:
+            return "Granted"
+        case .denied:
+            return "Denied"
+        }
+    }
+}
+
+public enum PermissionRequirement: String, CaseIterable, Sendable {
+    case microphone
+    case speech
+    case accessibility
+
+    public var title: String {
+        switch self {
+        case .microphone:
+            return "Microphone"
+        case .speech:
+            return "Speech Recognition"
+        case .accessibility:
+            return "Accessibility"
+        }
+    }
 }
 
 public struct PermissionSnapshot: Sendable {
     public var microphone: PermissionState
     public var speech: PermissionState
     public var accessibility: PermissionState
+
+    public var missingRequirements: [PermissionRequirement] {
+        var missing: [PermissionRequirement] = []
+        if microphone != .granted { missing.append(.microphone) }
+        if speech != .granted { missing.append(.speech) }
+        if accessibility != .granted { missing.append(.accessibility) }
+        return missing
+    }
+
+    public var isReadyForDictation: Bool {
+        missingRequirements.isEmpty
+    }
+
+    public var summaryText: String {
+        guard !missingRequirements.isEmpty else { return "Ready" }
+        return "Needs \(missingRequirements.map(\.title).joined(separator: " + "))"
+    }
+
+    public var shortPrompt: String {
+        guard !missingRequirements.isEmpty else { return "Ready" }
+        return "Grant \(missingRequirements.map(\.title).joined(separator: " + "))"
+    }
+
+    public var troubleshootingText: String {
+        if isReadyForDictation {
+            return "All required permissions are granted. Typeless should be ready to listen and paste."
+        }
+
+        let steps = missingRequirements.map { requirement -> String in
+            switch requirement {
+            case .microphone:
+                return "• System Settings → Privacy & Security → Microphone → enable Typeless"
+            case .speech:
+                return "• System Settings → Privacy & Security → Speech Recognition → enable Typeless"
+            case .accessibility:
+                return "• System Settings → Privacy & Security → Accessibility → enable Typeless"
+            }
+        }
+
+        return """
+        Typeless needs the following before it can start and paste safely:
+        \(steps.joined(separator: "\n"))
+        """
+    }
 }
 
 @MainActor
@@ -28,6 +100,10 @@ public final class PermissionCoordinator {
     }
 
     public func ensureReadyForRecording() async -> PermissionSnapshot {
+        let initialSnapshot = snapshot()
+        AppLogger.permissions.info(
+            "Permission snapshot before request: mic=\(initialSnapshot.microphone.rawValue, privacy: .public) speech=\(initialSnapshot.speech.rawValue, privacy: .public) ax=\(initialSnapshot.accessibility.rawValue, privacy: .public)"
+        )
         if microphoneState() == .unknown {
             _ = await AVCaptureDevice.requestAccess(for: .audio)
         }
@@ -38,11 +114,16 @@ public final class PermissionCoordinator {
                 }
             }
         }
-        return snapshot()
+        let updatedSnapshot = snapshot()
+        AppLogger.permissions.info(
+            "Permission snapshot after request: mic=\(updatedSnapshot.microphone.rawValue, privacy: .public) speech=\(updatedSnapshot.speech.rawValue, privacy: .public) ax=\(updatedSnapshot.accessibility.rawValue, privacy: .public)"
+        )
+        return updatedSnapshot
     }
 
     public func promptForAccessibilityIfNeeded() {
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        AppLogger.permissions.notice("Prompting for accessibility trust")
         _ = AXIsProcessTrustedWithOptions(options)
     }
 
