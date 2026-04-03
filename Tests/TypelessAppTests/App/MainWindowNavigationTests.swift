@@ -21,3 +21,7 @@ struct MainWindowNavigationTests {
         #expect(navigation.initialPage(hasCompletedWelcome: true) == .general)
     }
 }
+
+    @Test func welcomePageRemainsPartOfNavigationModel() {
+        #expect(MainWindowNavigationModel().pages.contains(.welcome))
+    }

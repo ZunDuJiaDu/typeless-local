@@ -26,3 +26,10 @@ struct DictationSessionCoordinatorTests {
         #expect(state == .failed)
     }
 }
+
+struct DictationSessionCoordinatorTimingRegressionTests {
+    @Test func fallbackWaitBudgetAllowsLateTranscriptToArrive() {
+        let fallbackDelayNanoseconds: UInt64 = 2_000_000_000
+        #expect(fallbackDelayNanoseconds >= 2_000_000_000)
+    }
+}

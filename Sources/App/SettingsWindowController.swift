@@ -28,6 +28,8 @@ public final class SettingsWindowController: NSWindowController {
     private let accessibilityStateLabel = NSTextField(labelWithString: "")
     private let rawTextView = NSTextView(frame: .zero)
     private let organizedTextView = NSTextView(frame: .zero)
+    private lazy var rawScrollView = makeScrollView(for: rawTextView)
+    private lazy var organizedScrollView = makeScrollView(for: organizedTextView)
     private let testStatusLabel = NSTextField(labelWithString: "Paste a raw transcript, then run Test Organization.")
     private let contentContainer = NSView(frame: .zero)
 
@@ -352,10 +354,14 @@ public final class SettingsWindowController: NSWindowController {
         organizedLabel.font = .systemFont(ofSize: 13, weight: .semibold)
         let comparisonGrid = NSGridView(views: [
             [rawLabel, organizedLabel],
-            [makeScrollView(for: rawTextView), makeScrollView(for: organizedTextView)]
+            [rawScrollView, organizedScrollView]
         ])
         comparisonGrid.rowSpacing = 12
         comparisonGrid.columnSpacing = 16
+        rawScrollView.widthAnchor.constraint(equalToConstant: 360).isActive = true
+        organizedScrollView.widthAnchor.constraint(equalToConstant: 360).isActive = true
+        rawScrollView.heightAnchor.constraint(equalToConstant: 300).isActive = true
+        organizedScrollView.heightAnchor.constraint(equalToConstant: 300).isActive = true
         let runButton = NSButton(title: "Run Test Organization", target: self, action: #selector(runTestOrganization))
         let clearButton = NSButton(title: "Clear", target: self, action: #selector(clearTestOrganization))
         let buttons = NSStackView(views: [runButton, clearButton])
@@ -433,6 +439,7 @@ public final class SettingsWindowController: NSWindowController {
     private func makeScrollView(for textView: NSTextView) -> NSScrollView {
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
         scrollView.borderType = .bezelBorder
         scrollView.documentView = textView
         textView.minSize = NSSize(width: 0, height: 0)

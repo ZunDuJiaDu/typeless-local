@@ -118,11 +118,10 @@ public final class DictationSessionCoordinator {
         audioCaptureEngine.stop()
         speechService.finish()
         finalizeTask?.cancel()
-        let fallbackTranscript = latestTranscript
         finalizeTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 350_000_000)
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
             guard let self, self.state == .finalizingASR else { return }
-            await self.completeSession(with: fallbackTranscript)
+            await self.completeSession(with: self.latestTranscript)
         }
     }
 
@@ -154,8 +153,8 @@ public final class DictationSessionCoordinator {
                 guard let self else { return }
                 self.latestTranscript = text
                 self.logFirstPartialIfNeeded(textCount: text.count)
-                if self.state == .recording {
-                    self.overlayController.update(text: text, level: 0.2)
+                if self.state == .recording || self.state == .finalizingASR {
+                    self.overlayController.update(text: text, level: self.state == .recording ? 0.2 : 0.12)
                 }
             }
         }
