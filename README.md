@@ -17,6 +17,8 @@ Typeless is a macOS 14+ menu-bar voice IME built with SwiftPM and AppKit.
 make test
 make build
 make run
+make install                     # installs to ~/Applications by default
+make install-system              # installs to /Applications
 make install INSTALL_DIR="$HOME/Applications"
 make clean
 ```
@@ -25,3 +27,9 @@ make clean
 - Fn suppression and cross-IME timing still require real-machine validation.
 - Some target apps (secure fields, terminals, heavily sandboxed apps) may refuse synthetic paste.
 - The first launch requires microphone, speech, and accessibility approval.
+
+
+## Install location
+- `make install` defaults to `~/Applications/Typeless.app`
+- `make install-system` installs to `/Applications/Typeless.app`
+- If both exist, macOS may open the wrong one if you launch the stale app manually.
